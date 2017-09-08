@@ -78,11 +78,11 @@ def test_get_parse(app, response_test):
 @pytest.mark.parametrize("response_test", [
     ResponseTest(
         "http://dummy_uri/parse?q=food",
-        {"error": "No model found with alias 'default'. Error: Failed to load model metadata. "}
+        {"error": "No model found with alias 'default'."}
     ),
     ResponseTest(
         "http://dummy_uri/parse?q=food&model=umpalumpa",
-        {"error": "No model found with alias 'umpalumpa'. Error: Failed to load model metadata. "}
+        {"error": "No model found with alias 'umpalumpa'."}
     )
 ])
 @pytest.inlineCallbacks
@@ -122,12 +122,12 @@ def test_post_parse(app, response_test):
 @pytest.mark.parametrize("response_test", [
     ResponseTest(
         "http://dummy_uri/parse",
-        {"error": "No model found with alias 'default'. Error: Failed to load model metadata. "},
+        {"error": "No model found with alias 'default'."},
         payload={"q": "food"}
     ),
     ResponseTest(
         "http://dummy_uri/parse",
-        {"error": "No model found with alias 'umpalumpa'. Error: Failed to load model metadata. "},
+        {"error": "No model found with alias 'umpalumpa'."},
         payload={"q": "food", "model": "umpalumpa"}
     ),
 ])
@@ -154,6 +154,6 @@ if __name__ == '__main__':
         persistor = create_persistor(config)
         trainer.persist("test_models", persistor, model_name=model_name)
 
-    train("config_mitie.json", "test_model_mitie")
-    train("config_spacy.json", "test_model_spacy_sklearn")
-    train("config_mitie_sklearn.json", "test_model_mitie_sklearn")
+    train("sample_configs/config_mitie.json", "test_model_mitie")
+    train("sample_configs/config_spacy.json", "test_model_spacy_sklearn")
+    train("sample_configs/config_mitie_sklearn.json", "test_model_mitie_sklearn")

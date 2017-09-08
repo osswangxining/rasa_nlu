@@ -56,7 +56,8 @@ class Metadata(object):
                 data = json.loads(f.read())
             return Metadata(data, model_dir)
         except Exception as e:
-            raise InvalidModelError("Failed to load model metadata. {}".format(e))
+            raise InvalidModelError("Failed to load model metadata from '{}'. {}".format(
+                    os.path.abspath(os.path.join(model_dir, 'metadata.json')), e))
 
     def __init__(self, metadata, model_dir):
         # type: (Dict[Text, Any], Optional[Text]) -> None
@@ -127,7 +128,7 @@ class Trainer(object):
         # type: (TrainingData) -> Interpreter
         """Trains the underlying pipeline by using the provided training data."""
 
-        self.training_data = copy.deepcopy(data)
+        self.training_data = data
 
         context = {}  # type: Dict[Text, Any]
 
@@ -140,10 +141,12 @@ class Trainer(object):
         if not self.skip_validation:
             components.validate_arguments(self.pipeline, context)
 
+        working_data = copy.deepcopy(data)  # data gets modified internally during the training - hence the copy
+
         for i, component in enumerate(self.pipeline):
             logger.info("Starting to train component {}".format(component.name))
             component.prepare_partial_processing(self.pipeline[:i], context)
-            updates = component.train(data, self.config, **context)
+            updates = component.train(working_data, self.config, **context)
             logger.info("Finished training component.")
             if updates:
                 context.update(updates)
@@ -192,9 +195,23 @@ class Interpreter(object):
         return {"intent": {"name": "", "confidence": 0.0}, "entities": []}
 
     @staticmethod
-    def load(model_metadata, config, component_builder=None, skip_valdation=False):
+    def load(model_dir, config=RasaNLUConfig(), component_builder=None, skip_valdation=False):
+        """Loads model metadata from file and creates an interpreter from the loaded model."""
+
+        if isinstance(model_dir, Metadata):
+            model_metadata = model_dir      # this is for backwards compatibilities (where metadata is passed as a dict)
+            logger.warn("Deprecated use of `Interpreter.load` with a metadata object. " +
+                        "If you want to directly pass the metadata, use `Interpreter.create(metadata, ...)`." +
+                        "If you want to load the metadata from file, use `Interpreter.load(model_dir, ...)")
+        else:
+            model_metadata = Metadata.load(model_dir)
+        return Interpreter.create(model_metadata, config, component_builder, skip_valdation)
+
+    @staticmethod
+    def create(model_metadata, config, component_builder=None, skip_valdation=False):
         # type: (Metadata, RasaNLUConfig, Optional[ComponentBuilder], bool) -> Interpreter
         """Load a stored model and its components defined by the provided metadata."""
+
         context = {}
 
         if component_builder is None:

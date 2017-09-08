@@ -14,6 +14,7 @@ import io
 
 from builtins import object
 from typing import Text
+from future.utils import PY3
 
 from concurrent.futures import ProcessPoolExecutor as ProcessPool
 from twisted.internet.defer import Deferred, maybeDeferred
@@ -107,7 +108,7 @@ class DataRouter(object):
 
     def __interpreter_for_model(self, model_path):
         metadata = DataRouter.read_model_metadata(model_path, self.config)
-        return Interpreter.load(metadata, self.config, self.component_builder)
+        return Interpreter.create(metadata, self.config, self.component_builder)
 
     def __create_model_store(self):
         # Fallback for users that specified the model path as a string and hence only want a single default model.
@@ -128,7 +129,7 @@ class DataRouter(object):
                 logger.exception("Failed to load model '{}'. Error: {}".format(model_path, e))
         if not model_store:
             meta = Metadata({"pipeline": ["intent_classifier_keyword"]}, "")
-            interpreter = Interpreter.load(meta, self.config, self.component_builder)
+            interpreter = Interpreter.create(meta, self.config, self.component_builder)
             model_store[self.DEFAULT_MODEL_NAME] = interpreter
         return model_store
 
@@ -216,8 +217,12 @@ class DataRouter(object):
         }
 
     def start_train_process(self, data, config_values):
-        f = tempfile.NamedTemporaryFile("w+", suffix="_training_data.json", delete=False)
-        f.write(data)
+        if PY3:
+            f = tempfile.NamedTemporaryFile("w+", suffix="_training_data.json", delete=False, encoding="utf-8")
+            f.write(data)
+        else:
+            f = tempfile.NamedTemporaryFile("w+", suffix="_training_data.json", delete=False)
+            f.write(data.encode("utf-8"))
         f.close()
         # TODO: fix config handling
         _config = self.config.as_dict()
